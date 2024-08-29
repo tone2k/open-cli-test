@@ -59,6 +59,104 @@ describe('OpenAI Integration', () => {
     await expect(newMessage(history, message, invalidOpenAI)).rejects.toThrow('Failed to get response from OpenAI');
   });
 
+  it('should generate reproducible outputs with a seed parameter for the Text Generation', async () => {
+    const seed = 42;
+    const history = [
+      { role: 'system', content: 'You are a helpful assistant.' },
+      { role: 'user', content: 'What is the capital of Japan?' }
+    ];
+  
+    const chatCompletion1 = await openai.chat.completions.create({
+      model: 'gpt-3.5-turbo',
+      messages: history,
+      max_tokens: 10,
+      temperature: 0,
+      user: 'test-user', 
+      seed: seed
+    });
+  
+    const chatCompletion2 = await openai.chat.completions.create({
+      model: 'gpt-3.5-turbo',
+      messages: history,
+      max_tokens: 10,
+      temperature: 0,
+      user: 'test-user',
+      seed: seed
+    });
+
+    expect(chatCompletion1.choices[0].message.content).toBe(chatCompletion2.choices[0].message.content);
+  });
+
+  it  ('should generate a structured response for baking a cake with Text Generation', async () => {
+    const schema = {
+      type: 'object',
+      properties: {
+        title: {
+          type: 'string',
+          description: 'The title of the recipe'
+        },
+        ingredients: {
+          type: 'array',
+          items: {
+            type: 'string',
+            description: 'A single ingredient needed for the recipe'
+          },
+          description: 'List of ingredients required to bake the cake'
+        },
+        instructions: {
+          type: 'array',
+          items: {
+            type: 'string',
+            description: 'Step-by-step instructions for baking the cake'
+          },
+          description: 'List of steps to follow to complete the recipe'
+        },
+        bake_time: {
+          type: 'string',
+          description: 'The time required to bake the cake'
+        },
+        oven_temperature: {
+          type: 'string',
+          description: 'The temperature setting for the oven'
+        }
+      },
+      required: ['title', 'ingredients', 'instructions', 'bake_time', 'oven_temperature']
+    };
+  
+    const messages = [
+      { role: 'system', content: 'You are a helpful assistant who provides structured recipe information.' },
+      { role: 'user', content: 'Please provide a recipe to bake a chocolate cake.' }
+    ];
+  
+    const result = await openai.chat.completions.create({
+      model: 'gpt-3.5-turbo',
+      messages: messages,
+      functions: [
+        {
+          name: 'bake_cake',
+          description: 'Provides a structured response for a cake recipe',
+          parameters: schema
+        }
+      ],
+      function_call: { name: 'bake_cake' }
+    });
+  
+    expect(result.choices[0].message).toHaveProperty('function_call');
+    const { function_call } = result.choices[0].message;
+    expect(function_call).toHaveProperty('arguments');
+  
+    const response = JSON.parse(function_call.arguments);
+    expect(response).toHaveProperty('title');
+    expect(response).toHaveProperty('ingredients');
+    expect(Array.isArray(response.ingredients)).toBe(true);
+    expect(response).toHaveProperty('instructions');
+    expect(Array.isArray(response.instructions)).toBe(true);
+    expect(response).toHaveProperty('bake_time');
+    expect(response).toHaveProperty('oven_temperature');
+  });
+  
+  
+
   it('should successfully call the OpenAI Image Generation API and return a valid response', async () => {
     const description = 'A test image for VMWare Tanzu by Broadcom';
 
@@ -118,4 +216,6 @@ describe('OpenAI Integration', () => {
 
     await expect(transcribeAudio(filePath, invalidOpenAI)).rejects.toThrow('Failed to transcribe audio from OpenAI');
   });
+  
+  
 });
