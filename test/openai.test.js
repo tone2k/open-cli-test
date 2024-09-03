@@ -3,6 +3,7 @@ import { newMessage } from '../capabilities/openai-text.js';
 import { generateImage } from '../capabilities/openai-image.js';
 import { generateSpeech } from '../capabilities/openai-tts.js'
 import { transcribeAudio } from '../capabilities/openai-stt.js';
+const { encode } = require('gpt-3-encoder');
 import path from 'path';
 import fs from 'fs';
 import OpenAI from 'openai';
@@ -22,6 +23,12 @@ const clearDirectory = (directoryPath) => {
     });
   }
 };
+
+const countTokens = (text) => {
+  const tokens = encode(text);
+  const tokenCount = tokens.length;
+  return tokenCount;
+}
 
 describe('OpenAI Integration', () => {
   let openai;
@@ -65,16 +72,16 @@ describe('OpenAI Integration', () => {
       { role: 'system', content: 'You are a helpful assistant.' },
       { role: 'user', content: 'What is the capital of Japan?' }
     ];
-  
+
     const chatCompletion1 = await openai.chat.completions.create({
       model: 'gpt-3.5-turbo',
       messages: history,
       max_tokens: 10,
       temperature: 0,
-      user: 'test-user', 
+      user: 'test-user',
       seed: seed
     });
-  
+
     const chatCompletion2 = await openai.chat.completions.create({
       model: 'gpt-3.5-turbo',
       messages: history,
@@ -87,7 +94,43 @@ describe('OpenAI Integration', () => {
     expect(chatCompletion1.choices[0].message.content).toBe(chatCompletion2.choices[0].message.content);
   });
 
-  it  ('should generate a structured response for baking a cake with Text Generation', async () => {
+  it('should generate reproducible outputs and equivilant token usage totals', async () => {
+    const seed = 42;
+    const prompt = 'What is the capital of Japan?';
+    const history = [
+      { role: 'system', content: 'You are a helpful assistant.' },
+      { role: 'user', content: prompt }
+    ];
+
+    const expectedTokens = countTokens("role: 'system', content: 'You are a helpful assistant.' ,role: 'user', content: 'What is the capital of Japan?' ")
+
+    const chatCompletion1 = await openai.chat.completions.create({
+      model: 'gpt-3.5-turbo',
+      messages: history,
+      max_tokens: 10,
+      temperature: 0,
+      user: 'test-user',
+      seed: seed
+    });
+
+
+    const chatCompletion2 = await openai.chat.completions.create({
+      model: 'gpt-3.5-turbo',
+      messages: history,
+      max_tokens: 10,
+      temperature: 0,
+      user: 'test-user',
+      seed: seed
+    });
+
+    const { usage } = chatCompletion1;
+
+    expect(usage).toHaveProperty('total_tokens');
+    expect(usage.total_tokens).toBe(expectedTokens);
+    expect(usage.total_tokens).toBe(chatCompletion2.usage.total_tokens);
+  });
+
+  it('should generate a structured response for baking a cake with Text Generation', async () => {
     const schema = {
       type: 'object',
       properties: {
@@ -122,12 +165,12 @@ describe('OpenAI Integration', () => {
       },
       required: ['title', 'ingredients', 'instructions', 'bake_time', 'oven_temperature']
     };
-  
+
     const messages = [
       { role: 'system', content: 'You are a helpful assistant who provides structured recipe information.' },
       { role: 'user', content: 'Please provide a recipe to bake a chocolate cake.' }
     ];
-  
+
     const result = await openai.chat.completions.create({
       model: 'gpt-3.5-turbo',
       messages: messages,
@@ -140,11 +183,11 @@ describe('OpenAI Integration', () => {
       ],
       function_call: { name: 'bake_cake' }
     });
-  
+
     expect(result.choices[0].message).toHaveProperty('function_call');
     const { function_call } = result.choices[0].message;
     expect(function_call).toHaveProperty('arguments');
-  
+
     const response = JSON.parse(function_call.arguments);
     expect(response).toHaveProperty('title');
     expect(response).toHaveProperty('ingredients');
@@ -154,8 +197,6 @@ describe('OpenAI Integration', () => {
     expect(response).toHaveProperty('bake_time');
     expect(response).toHaveProperty('oven_temperature');
   });
-  
-  
 
   it('should successfully call the OpenAI Image Generation API and return a valid response', async () => {
     const description = 'A test image for VMWare Tanzu by Broadcom';
@@ -216,6 +257,6 @@ describe('OpenAI Integration', () => {
 
     await expect(transcribeAudio(filePath, invalidOpenAI)).rejects.toThrow('Failed to transcribe audio from OpenAI');
   });
-  
-  
+
+
 });
