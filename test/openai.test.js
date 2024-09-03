@@ -258,5 +258,31 @@ describe('OpenAI Integration', () => {
     await expect(transcribeAudio(filePath, invalidOpenAI)).rejects.toThrow('Failed to transcribe audio from OpenAI');
   });
 
+  it('should respond with 5 messages with each picking one fruit from a provided list of options', async () => {
+    const fruits = ['apple', 'banana', 'orange', 'grape', 'mango'];
+    
+    const messages = [
+      { role: 'system', content: 'You are a helpful assistant.' },
+      { role: 'user', content: `Please pick one fruit from the following list: ${fruits.join(', ')}.` }
+    ];
+  
+    const chatCompletion = await openai.chat.completions.create({
+      model: 'gpt-3.5-turbo',
+      messages: messages,
+      max_tokens: 10,
+      temperature: 0.5,
+      n: 5 
+    });
+
+    const responses = chatCompletion.choices.map(choice => choice.message.content.trim().toLowerCase());
+    
+  
+    responses.forEach(response => {
+      const containsFruit = fruits.some(fruit => response.includes(fruit));
+      expect(containsFruit).toBe(true);
+    });
+
+  });
+
 
 });
