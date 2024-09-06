@@ -1,2 +1,3 @@
 .env
 capabilities/audio_output/audio-output.mp3
+node_modules
