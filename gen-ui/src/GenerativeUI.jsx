@@ -14,7 +14,7 @@ export default function GenerativeUI({ message }) {
     const form = document.getElementById('interactiveForm');
     const button = document.getElementById('dynamic-button');
 
-    const handleFormSubmit = (e) => {
+    const handleFormSubmit = async (e) => {
       e.preventDefault();
 
       const nameInput = document.getElementById('nameInput').value;
@@ -38,8 +38,19 @@ export default function GenerativeUI({ message }) {
         document.getElementById('messageInput').disabled = true;
       }
 
+      const response = await fetch('http://localhost:3000/api/bike', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ message: `make me a bike order summary using this data ${formData}`}),
+      })
 
+      const data = await response.json()
       console.log('Form data submitted:', { name: nameInput, email: emailInput, message: messageInput });
+
+      console.log('Structured JSON response', data.content.function_call.arguments);
+
     };
 
     if (form) {

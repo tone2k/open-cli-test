@@ -43,6 +43,7 @@ export default function App() {
 
         const data = await response.json()
 
+
         if (data.content.includes('Image generated:')) {
           const imageUrl = data.content.split('Image generated: ')[1]
           setMessages((prev) => [...prev, { role: 'ai', content: `Image generated: ` }, { role: 'image', content: imageUrl }])
