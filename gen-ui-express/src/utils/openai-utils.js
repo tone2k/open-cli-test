@@ -5,6 +5,7 @@ import { fetchStockData } from '../api/stock-api.js';
 import { formatNewsHtml } from '../templates/news.js';
 import { formatWeatherHtml } from '../templates/weather.js';
 import { formatStockHtml } from '../templates/stock.js';
+import { fetchForm } from '../templates/form.js';
 
 export const transcribeAudio = async (filePath, openaiInstance) => {
   try {
@@ -85,6 +86,10 @@ export const newMessage = async (history, message, openaiInstance) => {
             },
             required: ['symbol'],
           },
+        },
+        {
+          name: 'formCaptureTool',
+          description: 'Provide user a form to complete for an order.',
         }
       ],
     });
@@ -94,9 +99,14 @@ export const newMessage = async (history, message, openaiInstance) => {
     if (response.function_call) {
       const { name, arguments: args } = response.function_call;
 
+      if (name === 'generateImageTool') {
+        const { description } = JSON.parse(args);
+        const imageResult = await generateImage(description, openaiInstance);
+        return { role: 'assistant', content: `Image generated: ${imageResult.url}` };
+      }
+
       if (name === 'stockDataTool') {
         const { symbol } = JSON.parse(args);
-        console.log("--->", symbol);
         const stockData = await fetchStockData(symbol);
         const stockHtmlResponse = formatStockHtml(stockData);
         return { role: 'assistant', content: stockHtmlResponse };
@@ -105,7 +115,6 @@ export const newMessage = async (history, message, openaiInstance) => {
       if (name === 'weatherTool') {
         const { location } = JSON.parse(args);
         const weatherData = await fetchWeather(location);
-
         const weatherHtmlResponse = formatWeatherHtml(weatherData);
         return { role: 'assistant', content: weatherHtmlResponse };
       }
@@ -117,12 +126,11 @@ export const newMessage = async (history, message, openaiInstance) => {
 
       }
 
-      if (name === 'generateImageTool') {
-        const { description } = JSON.parse(args);
-        const imageResult = await generateImage(description, openaiInstance);
-
-        return { role: 'assistant', content: `Image generated: ${imageResult.url}` };
+      if (name === 'formCaptureTool') {
+        return { role: 'assistant', content: fetchForm() };
       }
+
+
     }
 
     return response;
