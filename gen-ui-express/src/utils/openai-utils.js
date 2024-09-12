@@ -36,9 +36,35 @@ export const generateImage = async (description, openaiInstance) => {
   }
 };
 
+export const newJSONMessage = async (history, message, openaiInstance, schema) => {
+  try {
+    const chatCompletion = await openaiInstance.chat.completions.create({
+      messages: [...history, message],
+      model: 'gpt-4',
+      functions: [
+        {
+          name: 'summarize_order',
+          description: 'Provides a structured response summary for a bike order',
+          parameters: schema
+        },
+      ],
+      function_call: { name: 'summarize_order' }
+    });
+
+    const response = chatCompletion.choices[0].message;
+
+    return { role: 'assistant', content: response };
+
+  } catch (error) {
+    console.error('Error occurred:', error.message);
+    throw new Error('Failed to get response from OpenAI');
+  }
+}
+
 
 export const newMessage = async (history, message, openaiInstance) => {
   try {
+    
     const chatCompletion = await openaiInstance.chat.completions.create({
       messages: [...history, message],
       model: 'gpt-4',
@@ -91,7 +117,7 @@ export const newMessage = async (history, message, openaiInstance) => {
           name: 'formCaptureTool',
           description: 'Provide user a form to complete for an order.',
         }
-      ],
+      ]
     });
 
     const response = chatCompletion.choices[0].message;
